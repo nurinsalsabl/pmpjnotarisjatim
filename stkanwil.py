@@ -24,51 +24,58 @@ scope = [
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/spreadsheets"
 ]
-# --- Cek token ---
-creds = None
-if os.path.exists("token.json"):
-    creds = Credentials.from_authorized_user_file("token.json", scopes=scope)
-    #st.info("🔑 Token login ditemukan, menggunakan sesi sebelumnya.")
 
-# --- Jika belum ada token, login dulu ---
-if not creds or not creds.valid:
-    if creds and creds.expired and creds.refresh_token:
-        # st.warning("♻️ Token kedaluwarsa, menyegarkan otomatis...")
-        creds.refresh(Request())
-    else:
-        # st.warning("🔑 Token belum ada, membuka login Google OAuth...")
-        flow = InstalledAppFlow.from_client_secrets_file("credentials.json", scopes=scope)
-        creds = flow.run_local_server(port=0)
-        # Simpan token baru
-        with open("token.json", "w") as token:
-            token.write(creds.to_json())
-        # st.success("✅ Login berhasil dan token disimpan!")
+# --- Autentikasi Google (hybrid: lokal + Streamlit Cloud) ---
+creds = None
+
+# ✅ 1. Kalau ada token lokal (buat development di laptop)
+if os.path.exists("token.json"):
+    # st.info("🔑 Menggunakan token lokal (token.json)")
+    creds = Credentials.from_authorized_user_file("token.json", scopes=scope)
+
+# ✅ 2. Kalau deploy di Streamlit Cloud (pakai secrets)
+elif "google" in st.secrets and "token" in st.secrets["google"]:
+    # st.info("☁️ Menggunakan token dari Streamlit Secrets")
+    creds_data = json.loads(st.secrets["google"]["token"])
+    creds = Credentials.from_authorized_user_info(creds_data, scopes=scope)
+
+# ✅ 3. Kalau token ada tapi expired, refresh otomatis
+if creds and creds.expired and creds.refresh_token:
+    creds.refresh(Request())
+
+# ✅ 4. Kalau belum ada sama sekali (misalnya pertama kali run lokal)
+if not creds:
+    st.warning("🔐 Token belum ada, buka login Google OAuth untuk membuat token.json (hanya di lokal).")
+    flow = InstalledAppFlow.from_client_secrets_file("credentials.json", scopes=scope)
+    creds = flow.run_local_server(port=0)
+    with open("token.json", "w") as token_file:
+        token_file.write(creds.to_json())
+    # st.success("✅ Token baru disimpan sebagai token.json!")
 
 # --- Koneksi ke Google Sheets ---
 try:
-    import gspread
     client = gspread.authorize(creds)
-    # st.success("✅ Autentikasi Google Sheets berhasil!")
+    st.success("✅ Autentikasi Google Sheets berhasil!")
 except Exception as e:
-    # st.error(f"❌ Gagal autentikasi Google Sheets: {str(e)}")
+    st.error(f"❌ Gagal autentikasi Google Sheets: {e}")
     client = None
 
 # --- Koneksi ke Google Drive ---
 try:
     drive_service = build('drive', 'v3', credentials=creds)
-    # st.info("✅ Terhubung ke Google Drive API.")
+    st.info("✅ Terhubung ke Google Drive API.")
 except Exception as e:
-    # st.error(f"❌ Gagal menghubungkan ke Google Drive API: {e}")
+    st.error(f"❌ Gagal menghubungkan ke Google Drive API: {e}")
     drive_service = None
 
-# Buka spreadsheet (jika client valid)
+# --- Buka Spreadsheet ---
 if client:
     try:
-        sh = client.open("Kuisioner PMPJ Notaris")  # Nama spreadsheet Anda
+        sh = client.open("Kuisioner PMPJ Notaris")  # Ganti dengan nama sheet kamu
         worksheet = sh.sheet1
-        # st.info(f"✅ Spreadsheet 'Hasil Penilaian Resiko' terbuka.")
+        st.success("📄 Spreadsheet 'Kuisioner PMPJ Notaris' berhasil dibuka!")
     except gspread.SpreadsheetNotFound:
-        # st.error("❌ Spreadsheet 'Hasil Penilaian Resiko' tidak ditemukan. Buat manual dan bagikan ke service account.")
+        st.error("❌ Spreadsheet tidak ditemukan. Pastikan sudah dibagikan ke akun Google.")
         sh = None
         worksheet = None
 else:
@@ -716,3 +723,4 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
