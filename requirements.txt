@@ -1,14 +1,20 @@
 streamlit
 pandas
 openpyxl
-pdf2image
-pytesseract
+
+# --- PDF & OCR ---
+pdfplumber
 PyPDF2
+pytesseract
+Pillow
+
+# --- Google API ---
 gspread
 oauth2client
 google-api-python-client
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
-Pillow
 
+# --- Tambahan untuk keamanan fuzzy matching ---
+difflib
