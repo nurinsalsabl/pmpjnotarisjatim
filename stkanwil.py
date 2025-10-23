@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import json
 from datetime import datetime
 import os
 import openpyxl
@@ -15,6 +16,9 @@ from googleapiclient.http import MediaFileUpload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
+import pdfplumber
+import io
+from PIL import Image
 
 
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -55,17 +59,17 @@ if not creds:
 # --- Koneksi ke Google Sheets ---
 try:
     client = gspread.authorize(creds)
-    st.success("✅ Autentikasi Google Sheets berhasil!")
+    # st.success("✅ Autentikasi Google Sheets berhasil!")
 except Exception as e:
-    st.error(f"❌ Gagal autentikasi Google Sheets: {e}")
+    # st.error(f"❌ Gagal autentikasi Google Sheets: {e}")
     client = None
 
 # --- Koneksi ke Google Drive ---
 try:
     drive_service = build('drive', 'v3', credentials=creds)
-    st.info("✅ Terhubung ke Google Drive API.")
+    # st.info("✅ Terhubung ke Google Drive API.")
 except Exception as e:
-    st.error(f"❌ Gagal menghubungkan ke Google Drive API: {e}")
+    # st.error(f"❌ Gagal menghubungkan ke Google Drive API: {e}")
     drive_service = None
 
 # --- Buka Spreadsheet ---
@@ -73,7 +77,7 @@ if client:
     try:
         sh = client.open("Kuisioner PMPJ Notaris")  # Ganti dengan nama sheet kamu
         worksheet = sh.sheet1
-        st.success("📄 Spreadsheet 'Kuisioner PMPJ Notaris' berhasil dibuka!")
+        st.success("📄 Mohon lengkapi kuisioner berikut sesuai format!")
     except gspread.SpreadsheetNotFound:
         st.error("❌ Spreadsheet tidak ditemukan. Pastikan sudah dibagikan ke akun Google.")
         sh = None
@@ -215,39 +219,50 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
         return False, "Tidak ada file.", 0
 
     try:
-        # Baca isi PDF sekali
+        # Baca PDF dalam bentuk byte
         pdf_bytes = uploaded_file1.read()
-        uploaded_file1.seek(0)  # reset pointer biar bisa dipakai lagi
+        uploaded_file1.seek(0)
 
         all_text = ""
 
-        # --- 1) Coba ekstrak langsung teks (kalau file text-based)
+        # --- 1️⃣ Ekstrak teks langsung (PDF text-based) ---
         try:
-            reader = PdfReader(BytesIO(pdf_bytes))
-            for page in reader.pages[:5]:  # batasi 5 halaman
-                text = page.extract_text()
-                if text:
-                    all_text += text.lower() + "\n"
-        except Exception:
-            pass
+            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+                for page in pdf.pages[:5]:
+                    extracted = page.extract_text()
+                    if extracted:
+                        all_text += extracted.lower() + "\n"
+        except Exception as e:
+            st.warning(f"⚠️ Gagal ekstrak teks langsung: {e}")
 
-        # --- 2) Kalau kosong, fallback ke OCR ---
+        # --- 2️⃣ Kalau kosong, fallback ke OCR (PDF hasil scan) ---
         if not all_text.strip():
+            st.info("📸 Harap menunggu scanning proses pdf...")
             try:
-                images = convert_from_bytes(pdf_bytes, dpi=300)[:5]  # Tambah dpi=300 untuk kualitas lebih baik
-                for img in images:
-                    text = pytesseract.image_to_string(img, lang="ind+eng", config='--psm 6')  # PSM 6 untuk teks blok
-                    all_text += text.lower() + "\n"
+                reader = PdfReader(io.BytesIO(pdf_bytes))
+                for page in reader.pages[:5]:
+                    resources = page.get("/Resources")
+                    if resources and "/XObject" in resources:
+                        xObject = resources["/XObject"]
+                        for obj in xObject:
+                            xobj = xObject[obj]
+                            if xobj.get("/Subtype") == "/Image":
+                                data = xobj.get_data()
+                                image = Image.open(io.BytesIO(data))
+                                text = pytesseract.image_to_string(
+                                    image, lang="ind+eng", config="--psm 6"
+                                )
+                                all_text += text.lower() + "\n"
             except Exception as e:
-                st.error(f"OCR gagal: {e}. Pastikan poppler dan tesseract terinstal.")
+                # st.error(f"❌ Gagal OCR dari gambar PDF: {e}")
                 return False, "Error OCR", 0
 
-        # --- Cek kata kunci ---
+        # --- 3️⃣ Cek kata kunci dengan fuzzy matching ---
         variasi_kata = [
             "formulir customer due diligence perorangan",
             "analisis resiko", "analisis risiko",
             "formulir customer due diligence",
-            "enhanced due diligence", "FORMULIR CUSTOMER DUE DILIGENCE KORPORASI"
+            "enhanced due diligence", "formulir customer due diligence korporasi"
         ]
 
         jumlah_ditemukan = 0
@@ -255,10 +270,12 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
             kata_lower = kata_utama.lower()
             variasi_relevan = [v for v in variasi_kata if kata_lower in v.lower()]
 
-            # fuzzy check biar toleran typo OCR (threshold 0.8 -> 0.7 untuk lebih longgar)
             def fuzzy_found(keyword):
-                return any(difflib.SequenceMatcher(None, keyword, chunk).ratio() > 0.7 
-                           for chunk in all_text.split() if len(chunk) > 3)  # Skip chunk pendek
+                return any(
+                    difflib.SequenceMatcher(None, keyword, chunk).ratio() > 0.7
+                    for chunk in all_text.split() if len(chunk) > 3
+                )
+
             found = (
                 kata_lower in all_text
                 or any(v in all_text for v in variasi_relevan)
@@ -266,10 +283,11 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
             )
             if found:
                 jumlah_ditemukan += 1
+
         return True, all_text, jumlah_ditemukan
 
-    except Exception:
-        # Tangkap error tapi jangan tampilkan apa-apa ke UI
+    except Exception as e:
+        st.error(f"❌ Error umum saat OCR: {e}")
         return False, "Error OCR", 0
     
 # --- Fungsi hitung internal control ---
@@ -317,7 +335,7 @@ def final_risk(df):
     return df
 
 # --- UI Streamlit ---
-st.title("📊 Penilaian Risiko")
+st.title("📊 Kuisioner PMPJ Notaris - Kementerian Hukum Jawa Timur")
 
 with st.form("risk_form"):
     st.subheader("Identitas Notaris")
