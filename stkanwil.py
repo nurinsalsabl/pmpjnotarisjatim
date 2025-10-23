@@ -4,7 +4,6 @@ import json
 from datetime import datetime
 import os
 import openpyxl
-from pdf2image import convert_from_bytes
 import pytesseract
 import gspread 
 from oauth2client.service_account import ServiceAccountCredentials
@@ -741,4 +740,5 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
