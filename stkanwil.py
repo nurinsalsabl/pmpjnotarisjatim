@@ -20,8 +20,6 @@ import io
 from PIL import Image
 
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-
 scope = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/drive.file",
@@ -212,19 +210,18 @@ def hitung_risiko(inputs):
         "total_skor": total, "kategori_risiko": kategori
     }
 
-# OCR PDF
+# --- OCR PDF ---
 def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
     if uploaded_file1 is None:
         return False, "Tidak ada file.", 0
 
     try:
-        # Baca PDF dalam bentuk byte
         pdf_bytes = uploaded_file1.read()
         uploaded_file1.seek(0)
 
         all_text = ""
 
-        # --- 1️⃣ Ekstrak teks langsung (PDF text-based) ---
+        # --- 1️⃣ Ekstrak teks langsung (kalau PDF text-based) ---
         try:
             with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
                 for page in pdf.pages[:5]:
@@ -234,26 +231,21 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
         except Exception as e:
             st.warning(f"⚠️ Gagal ekstrak teks langsung: {e}")
 
-        # --- 2️⃣ Kalau kosong, fallback ke OCR (PDF hasil scan) ---
+        # --- 2️⃣ Kalau teks kosong, fallback ke OCR (hasil scan) ---
         if not all_text.strip():
-            st.info("📸 Harap menunggu scanning proses pdf...")
+            st.info("📸 Tidak ada teks bawaan di PDF, menjalankan OCR...")
             try:
-                reader = PdfReader(io.BytesIO(pdf_bytes))
-                for page in reader.pages[:5]:
-                    resources = page.get("/Resources")
-                    if resources and "/XObject" in resources:
-                        xObject = resources["/XObject"]
-                        for obj in xObject:
-                            xobj = xObject[obj]
-                            if xobj.get("/Subtype") == "/Image":
-                                data = xobj.get_data()
-                                image = Image.open(io.BytesIO(data))
-                                text = pytesseract.image_to_string(
-                                    image, lang="ind+eng", config="--psm 6"
-                                )
-                                all_text += text.lower() + "\n"
+                with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+                    for i, page in enumerate(pdf.pages[:5]):
+                        # 🔹 Render halaman PDF jadi image
+                        page_image = page.to_image(resolution=200).original
+                        # 🔹 OCR dari image
+                        text = pytesseract.image_to_string(
+                            page_image, lang="ind+eng", config="--psm 6"
+                        )
+                        all_text += text.lower() + "\n"
             except Exception as e:
-                # st.error(f"❌ Gagal OCR dari gambar PDF: {e}")
+                st.error(f"❌ Gagal OCR dari gambar PDF: {e}")
                 return False, "Error OCR", 0
 
         # --- 3️⃣ Cek kata kunci dengan fuzzy matching ---
@@ -270,10 +262,12 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
             variasi_relevan = [v for v in variasi_kata if kata_lower in v.lower()]
 
             def fuzzy_found(keyword):
-                return any(
-                    difflib.SequenceMatcher(None, keyword, chunk).ratio() > 0.7
-                    for chunk in all_text.split() if len(chunk) > 3
-                )
+                panjang = len(keyword)
+                for i in range(0, len(all_text) - panjang + 1):
+                    potongan = all_text[i:i+panjang+3]
+                    if difflib.SequenceMatcher(None, keyword, potongan).ratio() > 0.6:
+                        return True
+                return False
 
             found = (
                 kata_lower in all_text
@@ -282,6 +276,11 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
             )
             if found:
                 jumlah_ditemukan += 1
+
+        # --- 4️⃣ Kalau OCR gak nemu teks sama sekali ---
+        if not all_text.strip():
+            st.warning(f"⚠️ OCR tidak menemukan teks di file {judul}.")
+            return False, "Tidak ada teks terdeteksi", 0
 
         return True, all_text, jumlah_ditemukan
 
@@ -740,5 +739,4 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
-
 
