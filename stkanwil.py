@@ -385,7 +385,7 @@ with st.form("risk_form"):
 
 
 # Pilihan kota/kabupaten
-    kota = st.selectbox("Pilih Keududkan Kota/Kabupaten", daftar_kota)
+    kota = st.selectbox("Pilih Kedudukan Kota/Kabupaten", daftar_kota)
 
     st.subheader("Jumlah Klien Sesuai Profesi")
     inputs_profil = {k: st.number_input(k, min_value=0, value=0) for k in profil.keys()}
@@ -739,6 +739,7 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
