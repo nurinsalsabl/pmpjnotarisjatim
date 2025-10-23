@@ -233,7 +233,7 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
 
         # --- 2️⃣ Kalau teks kosong, fallback ke OCR (hasil scan) ---
         if not all_text.strip():
-            st.info("📸 Tidak ada teks bawaan di PDF, menjalankan OCR...")
+            st.info("📸 Proses scan PDF sedan berjalan...")
             try:
                 with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
                     for i, page in enumerate(pdf.pages[:5]):
@@ -739,4 +739,5 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
