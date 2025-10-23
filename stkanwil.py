@@ -341,7 +341,7 @@ with st.form("risk_form"):
     NIK_KTP = st.text_input("NIK KTP (16 digit angka)")
     username = st.text_input("Username Akun AHU Online", "")
     nomor_HP = st.text_input("Nomor HP")
-    alamat = st.text_input("Alamat Lengkap Notaris", "")
+    alamat = st.text_input("Alamat Kantor Lengkap Notaris", "")
     daftar_kota = [
     "Kabupaten Bangkalan",
     "Kabupaten Banyuwangi",
@@ -385,7 +385,7 @@ with st.form("risk_form"):
 
 
 # Pilihan kota/kabupaten
-    kota = st.selectbox("Pilih Kota/Kabupaten", daftar_kota)
+    kota = st.selectbox("Pilih Keududkan Kota/Kabupaten", daftar_kota)
 
     st.subheader("Jumlah Klien Sesuai Profesi")
     inputs_profil = {k: st.number_input(k, min_value=0, value=0) for k in profil.keys()}
@@ -564,8 +564,8 @@ if submitted:
             "NIK KTP": NIK_KTP,
             "Username Akun AHU Online": username,
             "Nomor HP": nomor_HP,
-            "2. Alamat Lengkap Notaris": alamat,
-            "Kota/Kabupaten": kota,
+            "2. Alamat Kantor Lengkap Notaris": alamat,
+            "Kedudukan Kota/Kabupaten": kota,
             "3. Jumlah Klien Tahun 2024-2025": jumlah_klien,
         }
 
@@ -646,7 +646,7 @@ if submitted:
         # --- Urutan kolom (opsional): taruh kolom identitas & ringkasan dulu, sisanya mengikuti ---
         ident_cols = [
             "Timestamp","Nama Notaris","NIK KTP","Username Akun AHU Online","Nomor HP",
-            "2. Alamat Lengkap Notaris","Kota/Kabupaten","3. Jumlah Klien Tahun 2024-2025"
+            "2. Alamat Kantor Lengkap Notaris","Kedudukan Kota/Kabupaten","3. Jumlah Klien Tahun 2024-2025"
         ]
         ringkasan_cols = [
             "Nilai Inherent Risk","Tingkat Inherent Risk",
@@ -739,5 +739,6 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
