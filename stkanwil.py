@@ -678,7 +678,7 @@ if submitted:
         st.error("Gagal autentikasi Google Sheets. Data tidak disimpan.")
     else:
         SPREADSHEET_NAME = "Kuisioner PMPJ Notaris FINAL 2025"
-        SPREADSHEET_ID = "1sSzjDwgmqO6YhOGzSk4kqOybdlzAEXagWW36r3nY1OM"  
+        SPREADSHEET_ID = "1sSzjDwgmqO6YhOGzSk4kqOybdlzAEXagWW36r3nY1OM"
         try:
             try:
                 sh = client.open_by_key(SPREADSHEET_ID)
@@ -739,6 +739,7 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
