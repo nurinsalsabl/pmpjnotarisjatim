@@ -76,7 +76,7 @@ if client:
         worksheet = sh.sheet1
         st.success("📄 Mohon lengkapi kuisioner berikut sesuai format!")
     except gspread.SpreadsheetNotFound:
-        st.error("❌ Spreadsheet tidak ditemukan. Pastikan sudah dibagikan ke akun Google.")
+        # st.error("❌ Spreadsheet tidak ditemukan. Pastikan sudah dibagikan ke akun Google.")
         sh = None
         worksheet = None
 else:
@@ -739,6 +739,7 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
