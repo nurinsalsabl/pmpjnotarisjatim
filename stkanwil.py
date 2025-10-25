@@ -1,4 +1,7 @@
 import streamlit as st
+st.cache_data.clear()
+st.cache_resource.clear()
+
 import pandas as pd
 import json
 from datetime import datetime
@@ -739,6 +742,7 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
