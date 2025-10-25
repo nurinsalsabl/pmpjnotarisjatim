@@ -72,7 +72,7 @@ except Exception as e:
 # --- Buka Spreadsheet ---
 if client:
     try:
-        sh = client.open("Kuisioner PMPJ Notaris")  # Ganti dengan nama sheet kamu
+        sh = client.open("Kuisioner PMPJ Notaris FINAL 2025")  # Ganti dengan nama sheet kamu
         worksheet = sh.sheet1
         st.success("📄 Mohon lengkapi kuisioner berikut sesuai format!")
     except gspread.SpreadsheetNotFound:
@@ -677,7 +677,7 @@ if submitted:
     if client is None:
         st.error("Gagal autentikasi Google Sheets. Data tidak disimpan.")
     else:
-        SPREADSHEET_NAME = "Hasil Penilaian Risiko"
+        SPREADSHEET_NAME = "Kuisioner PMPJ Notaris FINAL 2025"
         SPREADSHEET_ID = "1sSzjDwgmqO6YhOGzSk4kqOybdlzAEXagWW36r3nY1OM"  
         try:
             try:
@@ -739,6 +739,7 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
