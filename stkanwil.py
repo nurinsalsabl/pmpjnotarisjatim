@@ -72,7 +72,7 @@ except Exception as e:
 # --- Buka Spreadsheet ---
 if client:
     try:
-        sh = client.open("Kuisioner PMPJ Notaris FINAL 2025")  # Ganti dengan nama sheet kamu
+        sh = client.open_by_key("1sSzJDwgmqO6YhoGzSk4kqOybdlzAEXagWW36r3nY1OM")  # Ganti dengan nama sheet kamu
         worksheet = sh.sheet1
         st.success("📄 Mohon lengkapi kuisioner berikut sesuai format!")
     except gspread.SpreadsheetNotFound:
@@ -739,6 +739,7 @@ if submitted:
         except Exception as e:
             import traceback
             st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
