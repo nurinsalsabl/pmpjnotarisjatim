@@ -738,7 +738,8 @@ if submitted:
 
         except Exception as e:
             import traceback
-            st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+            # st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
