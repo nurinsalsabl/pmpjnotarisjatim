@@ -211,63 +211,87 @@ def hitung_risiko(inputs):
     }
 
 # --- OCR PDF ---
-def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
-    if uploaded_file1 is None:
-        return False, "Tidak ada file.", 0
+# === FUNGSI VALIDASI PDF DENGAN DETEKSI OTOMATIS (Q1/Q2) ===
+# ==========================================================
+def validasi_ocr_pdf(uploaded_file, kata_kunci_list):
+    """
+    Validasi isi file PDF (OCR + deteksi otomatis tipe dokumen).
+    Mengembalikan:
+        - True/False: status valid OCR
+        - all_text: teks hasil OCR
+        - jumlah_ditemukan: jumlah kata kunci yang ditemukan
+        - tipe_file: 'Q1', 'Q2', atau 'Tidak Teridentifikasi'
+    """
+    if uploaded_file is None:
+        return False, "Tidak ada file.", 0, "Tidak Teridentifikasi"
 
     try:
-        pdf_bytes = uploaded_file1.read()
-        uploaded_file1.seek(0)
-
+        # --- Baca isi PDF ---
+        pdf_bytes = uploaded_file.read()
+        uploaded_file.seek(0)
         all_text = ""
 
-        # --- 1️⃣ Ekstrak teks langsung (kalau PDF text-based) ---
+        # --- 1) Coba ekstrak teks langsung ---
         try:
-            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-                for page in pdf.pages[:5]:
-                    extracted = page.extract_text()
-                    if extracted:
-                        all_text += extracted.lower() + "\n"
-        except Exception as e:
-            st.warning(f"⚠️ Gagal ekstrak teks langsung: {e}")
+            reader = PdfReader(BytesIO(pdf_bytes))
+            for page in reader.pages[:5]:
+                text = page.extract_text()
+                if text:
+                    all_text += text.lower() + "\n"
+        except Exception:
+            pass
 
-        # --- 2️⃣ Kalau teks kosong, fallback ke OCR (hasil scan) ---
+        # --- 2) Kalau kosong, fallback ke OCR ---
         if not all_text.strip():
-            st.info("📸 Proses scan PDF sedan berjalan...")
             try:
-                with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-                    for i, page in enumerate(pdf.pages[:5]):
-                        # 🔹 Render halaman PDF jadi image
-                        page_image = page.to_image(resolution=200).original
-                        # 🔹 OCR dari image
-                        text = pytesseract.image_to_string(
-                            page_image, lang="ind+eng", config="--psm 6"
-                        )
-                        all_text += text.lower() + "\n"
+                images = convert_from_bytes(pdf_bytes, dpi=300)[:5]
+                for img in images:
+                    text = pytesseract.image_to_string(
+                        img, lang="ind+eng", config="--psm 6"
+                    )
+                    all_text += text.lower() + "\n"
             except Exception as e:
-                st.error(f"❌ Gagal OCR dari gambar PDF: {e}")
-                return False, "Error OCR", 0
+                st.error(f"OCR gagal: {e}. Pastikan poppler dan tesseract terinstal.")
+                return False, "Error OCR", 0, "Tidak Teridentifikasi"
 
-        # --- 3️⃣ Cek kata kunci dengan fuzzy matching ---
-        variasi_kata = [
-            "formulir customer due diligence perorangan",
-            "analisis resiko", "analisis risiko",
-            "formulir customer due diligence",
-            "enhanced due diligence", "formulir customer due diligence korporasi"
-        ]
+        # --- 3) Deteksi tipe dokumen otomatis ---
+        indikator_q1 = ["cdd", "edd", "formulir customer", "analisis risiko", "analisis resiko"]
+        indikator_q2 = ["sop", "kebijakan", "pmpj", "mitigasi risiko", "permenkumham", "pengendalian intern"]
 
+        hitung_q1 = sum(1 for kata in indikator_q1 if kata in all_text)
+        hitung_q2 = sum(1 for kata in indikator_q2 if kata in all_text)
+
+        if hitung_q1 > hitung_q2:
+            tipe_file = "Q1"
+            variasi_kata = [
+                "formulir customer due diligence perorangan",
+                "formulir customer due diligence korporasi",
+                "analisis risiko", "analisis resiko",
+                "enhanced due diligence", "cdd", "edd"
+            ]
+        elif hitung_q2 > hitung_q1:
+            tipe_file = "Q2"
+            variasi_kata = [
+                "sop pmpj", "kebijakan pmpj", "prosedur pmpj",
+                "pedoman pmpj", "mitigasi risiko", "pasal 17 permkham",
+                "pengendalian intern", "penerapan pmpj"
+            ]
+        else:
+            tipe_file = "Tidak Teridentifikasi"
+            variasi_kata = kata_kunci_list  # fallback
+
+        # --- 4) Cek kata kunci utama ---
         jumlah_ditemukan = 0
         for kata_utama in kata_kunci_list:
             kata_lower = kata_utama.lower()
             variasi_relevan = [v for v in variasi_kata if kata_lower in v.lower()]
 
+            # Fuzzy matching (biar toleran OCR)
             def fuzzy_found(keyword):
-                panjang = len(keyword)
-                for i in range(0, len(all_text) - panjang + 1):
-                    potongan = all_text[i:i+panjang+3]
-                    if difflib.SequenceMatcher(None, keyword, potongan).ratio() > 0.6:
-                        return True
-                return False
+                return any(
+                    difflib.SequenceMatcher(None, keyword, chunk).ratio() > 0.7
+                    for chunk in all_text.split() if len(chunk) > 3
+                )
 
             found = (
                 kata_lower in all_text
@@ -277,29 +301,51 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
             if found:
                 jumlah_ditemukan += 1
 
-        # --- 4️⃣ Kalau OCR gak nemu teks sama sekali ---
-        if not all_text.strip():
-            st.warning(f"⚠️ OCR tidak menemukan teks di file {judul}.")
-            return False, "Tidak ada teks terdeteksi", 0
+        return True, all_text, jumlah_ditemukan, tipe_file
 
-        return True, all_text, jumlah_ditemukan
+    except Exception:
+        return False, "Error OCR", 0, "Tidak Teridentifikasi"
 
-    except Exception as e:
-        st.error(f"❌ Error umum saat OCR: {e}")
-        return False, "Error OCR", 0
-    
-# --- Fungsi hitung internal control ---
-def hitung_internal_control(q1, uploaded_file1, is_valid_ocr_q1):
-    if q1 == "TIDAK" or uploaded_file1 is None:
-        nilai = 141  # Lemah jika q1=TIDAK atau no file
-    else:  # q1 == "YA" dan file ada
-        nilai = 37 if is_valid_ocr_q1 else 141  # Sangat Baik jika valid, else Lemah
+
+# ==========================================================
+# === FUNGSI HITUNG INTERNAL CONTROL (GABUNGAN Q1 & Q2) ===
+# ==========================================================
+def hitung_internal_control(q1, q2, uploaded_file1, uploaded_file2, is_valid_ocr_q1, is_valid_ocr_q2):
+    """
+    Hitung nilai dan kategori internal control berdasarkan dua dokumen:
+    - Q1: CDD/EDD/Analisis Risiko
+    - Q2: SOP/Kebijakan/PMPJ
+    Logika:
+        - Jika dua-duanya benar -> nilai 37 (Sangat Baik)
+        - Jika hanya satu benar -> nilai 36 (Baik)
+        - Jika dua-duanya salah / tidak ada -> nilai 141 (Lemah)
+    """
+    # Kondisi lemah (tidak isi, tidak upload, atau jawab TIDAK)
+    if (
+        q1 == "TIDAK" or q2 == "TIDAK" or
+        (uploaded_file1 is None and uploaded_file2 is None)
+    ):
+        nilai = 141
+
+    else:
+        # Dua-duanya valid
+        if is_valid_ocr_q1 and is_valid_ocr_q2:
+            nilai = 37
+        # Salah satu valid
+        elif is_valid_ocr_q1 or is_valid_ocr_q2:
+            nilai = 36
+        # Dua-duanya tidak valid
+        else:
+            nilai = 141
+
+    # Kategori
     def kategori_ic(nilai):
-        if 37 <= nilai <= 62: return "Sangat Baik"
-        elif 63 <= nilai <= 88: return "Baik"
+        if nilai == 37: return "Sangat Baik"
+        elif nilai == 36: return "Baik"
         elif 89 <= nilai <= 114: return "Cukup"
         elif 115 <= nilai <= 141: return "Lemah"
         return "Diluar Rentang"
+
     return nilai, kategori_ic(nilai)
 
 # --- Residual Risk ---
@@ -465,22 +511,41 @@ if submitted:
 
     if missing:
         st.error("⚠️ Semua data wajib diisi (kecuali dokumen pendukung).")
+
     elif not NIK_KTP.isdigit() or not nomor_HP.isdigit():
         st.error("⚠️ NIK KTP dan Nomor HP harus berupa angka.")
+
     elif len(NIK_KTP) != 16:
         st.error("⚠️ NIK KTP harus 16 digit.")
+
     else:
-        kata_kunci_list = [
-            "Formulir Customer Due Diligence",
-            "formulir customer due diligence perorangan",
-            "Analisis Risiko", "Analisis Resiko",
-            "Enhanced Due Diligence",
-            "CDD",
-            "EDD"]
-        is_valid_ocr_q1, teks_ocr_q1, jumlah_kata_ditemukan_q1 = validasi_ocr_pdf(
-            uploaded_file1, kata_kunci_list, judul="Dokumen Q1 (CDD/EDD/Analisis Risiko)"
+        # ======================================================
+        # === Bagian baru: validasi OCR & hitung internal control
+        # ======================================================
+
+        # Kata kunci umum (biar fungsi bisa deteksi otomatis Q1 / Q2)
+        kata_kunci_umum = [
+            "formulir customer due diligence", "analisis risiko", "enhanced due diligence",
+            "cdd", "edd", "sop", "kebijakan", "SOP", "mitigasi risiko", "pasal 17 permkham"
+        ]
+
+        # === Validasi File 1 ===
+        is_valid_ocr_q1, teks_ocr_q1, jumlah_kata_ditemukan_q1, tipe_file1 = validasi_ocr_pdf(
+            uploaded_file1, kata_kunci_umum
         )
 
+        # === Validasi File 2 ===
+        is_valid_ocr_q2, teks_ocr_q2, jumlah_kata_ditemukan_q2, tipe_file2 = validasi_ocr_pdf(
+            uploaded_file2, kata_kunci_umum
+        )
+
+        # === Hitung Nilai Internal Control Gabungan ===
+        nilai_ic, kategori_ic = hitung_internal_control(
+            q1, q2,
+            uploaded_file1, uploaded_file2,
+            is_valid_ocr_q1, is_valid_ocr_q2
+        )
+        
         # Simpan file pendukung (jika ada) & catat path
         # --- Simpan file & upload ke Google Drive ---
         os.makedirs("uploads", exist_ok=True)
@@ -739,6 +804,7 @@ if submitted:
         except Exception as e:
             import traceback
             # st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
