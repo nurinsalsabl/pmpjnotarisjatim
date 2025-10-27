@@ -317,7 +317,7 @@ def hitung_internal_control(q1, q2, uploaded_file1, uploaded_file2, is_valid_ocr
     - Q2: SOP/Kebijakan/PMPJ
     Logika:
         - Jika dua-duanya benar -> nilai 37 (Sangat Baik)
-        - Jika hanya satu benar -> nilai 36 (Baik)
+        - Jika hanya satu benar -> nilai 41 (Baik)
         - Jika dua-duanya salah / tidak ada -> nilai 141 (Lemah)
     """
     # Kondisi lemah (tidak isi, tidak upload, atau jawab TIDAK)
@@ -333,7 +333,7 @@ def hitung_internal_control(q1, q2, uploaded_file1, uploaded_file2, is_valid_ocr
             nilai = 37
         # Salah satu valid
         elif is_valid_ocr_q1 or is_valid_ocr_q2:
-            nilai = 36
+            nilai = 41
         # Dua-duanya tidak valid
         else:
             nilai = 141
@@ -341,7 +341,7 @@ def hitung_internal_control(q1, q2, uploaded_file1, uploaded_file2, is_valid_ocr
     # Kategori
     def kategori_ic(nilai):
         if nilai == 37: return "Sangat Baik"
-        elif nilai == 36: return "Baik"
+        elif nilai == 41: return "Baik"
         elif 89 <= nilai <= 114: return "Cukup"
         elif 115 <= nilai <= 141: return "Lemah"
         return "Diluar Rentang"
@@ -804,6 +804,7 @@ if submitted:
         except Exception as e:
             import traceback
             # st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
