@@ -251,7 +251,6 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
         # --- 3️⃣ Cek kata kunci dengan fuzzy matching ---
         variasi_kata = [
             "formulir customer due diligence perorangan",
-            "analisis resiko", "analisis risiko",
             "formulir customer due diligence",
             "enhanced due diligence", "formulir customer due diligence korporasi"
         ]
@@ -739,6 +738,7 @@ if submitted:
         except Exception as e:
             import traceback
             # st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
 
 
 
