@@ -7,6 +7,7 @@ pdfplumber
 PyPDF2
 pytesseract
 Pillow
+PDF2Image
 
 # --- Google API ---
 gspread
