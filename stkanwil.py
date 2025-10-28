@@ -233,7 +233,7 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
 
         # --- 2️⃣ Kalau teks kosong, fallback ke OCR (hasil scan) ---
         if not all_text.strip():
-            st.info("📸 Proses scan PDF sedan berjalan...")
+            st.info("📸 Proses scan PDF sedang berjalan...")
             try:
                 with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
                     for i, page in enumerate(pdf.pages[:5]):
