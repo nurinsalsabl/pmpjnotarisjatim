@@ -179,6 +179,44 @@ negara = {
 
 apgakkum = {"YA": 6, "TIDAK": 1}
 
+wilayah_skor = {
+    "DKI Jakarta": 9,
+    "Jawa Barat": 6,
+    "Jawa Timur": 6,
+    "Aceh": 5,
+    "Jawa Tengah": 4,
+    "Kalimantan Timur": 4,
+    "Banten": 3,
+    "Kepulauan Riau": 3,
+    "Lampung": 3,
+    "Sulawasi Selatan": 3,
+    "Sumatera Utara": 3,
+    "Sulawasi Tenggara": 3,
+    "Sulawesi Utara": 3,
+    "Sumatera Selatan": 3,
+    "DI Yogyakarta": 3,
+    "Bali": 2,
+    "Riau": 2,
+    "Bangka Belitung": 2,
+    "Bengkulu": 2,
+    "Kalimantan Tengah": 2,
+    "Maluku Utara": 2,
+    "Nusa Tenggara Timur": 2,
+    "Papua": 2,
+    "Sulawesi Barat": 2,
+    "Sulawesi Tengah": 2,
+    "Gorontalo": 2,
+    "Jambi": 2,
+    "Kalimantan Selatan": 2,
+    "Maluku": 2,
+    "Nusa Tenggara Barat": 2,
+    "Papua Barat": 2,
+    "Sumatera Barat": 2,
+    "Kalimantan Barat": 1,
+    "Kalimantan Utara": 1
+}
+
+
 # --- Fungsi hitung inherent risk ---
 def hitung_risiko(inputs):
     def pilih_terbesar(mapping_dict, user_inputs, default=None):
@@ -192,8 +230,10 @@ def hitung_risiko(inputs):
     jawaban_jasa, skor_jasa       = pilih_terbesar(jasa, inputs["jasa"],     default="h. Lain-lain")
     jawaban_negara, skor_negara   = pilih_terbesar(negara, inputs["negara"], default="e.  Asia lainnya")
     skor_apgakkum                 = apgakkum.get(inputs["apgakkum"], 0)
+    jawaban_wilayah = inputs["wilayah"]
+    skor_wilayah = wilayah_skor.get(jawaban_wilayah, 0)
 
-    total = skor_profil + skor_bisnis + skor_jasa + skor_negara + skor_apgakkum + 6
+    total = skor_profil + skor_bisnis + skor_jasa + skor_negara + skor_apgakkum + skor_wilayah
 
     if 6 <= total <= 17: kategori = "Rendah"
     elif 18 <= total <= 29: kategori = "Sedang"
@@ -207,6 +247,7 @@ def hitung_risiko(inputs):
         "jawaban_jasa": jawaban_jasa,     "skor_jasa": skor_jasa,
         "jawaban_negara": jawaban_negara, "skor_negara": skor_negara,
         "jawaban_apgakkum": inputs["apgakkum"], "skor_apgakkum": skor_apgakkum,
+        "jawaban_wilayah" : jawaban_wilayah, "skor_wilayah": skor_wilayah,
         "total_skor": total, "kategori_risiko": kategori
     }
 
@@ -381,10 +422,46 @@ with st.form("risk_form"):
     "Kota Probolinggo",
     "Kota Surabaya"
 ]
-
+    daftar_wilayah = [
+        "DKI Jakarta",
+    "Jawa Barat",
+    "Jawa Timur",
+    "Aceh",
+    "Jawa Tengah",
+    "Kalimantan Timur",
+    "Banten",
+    "Kepulauan Riau",
+    "Lampung",
+    "Sulawasi Selatan",
+    "Sumatera Utara",
+    "Sulawasi Tenggara",
+    "Sulawesi Utara",
+    "Sumatera Selatan",
+    "DI Yogyakarta",
+    "Bali",
+    "Riau",
+    "Bangka Belitung",
+    "Bengkulu",
+    "Kalimantan Tengah",
+    "Maluku Utara",
+    "Nusa Tenggara Timur",
+    "Papua",
+    "Sulawesi Barat",
+    "Sulawesi Tengah",
+    "Gorontalo",
+    "Jambi",
+    "Kalimantan Selatan",
+    "Maluku",
+    "Nusa Tenggara Barat",
+    "Papua Barat",
+    "Sumatera Barat",
+    "Kalimantan Barat",
+    "Kalimantan Utara"
+]
 
 # Pilihan Kedudukan Kota/Kabupaten
     kota = st.selectbox("Pilih Kedudukan Kota/Kabupaten", daftar_kota)
+    wilayah_input = st.selectbox("Pilih Wilayah Provinsi Kedudukan", daftar_wilayah)
 
     st.subheader("Jumlah Klien Sesuai Profesi")
     inputs_profil = {k: st.number_input(k, min_value=0, value=0) for k in profil.keys()}
@@ -540,7 +617,8 @@ if submitted:
             "bisnis": inputs_bisnis,
             "jasa": inputs_jasa,
             "negara": inputs_negara,
-            "apgakkum": inputs_apgakkum
+            "apgakkum": inputs_apgakkum,
+            "wilayah": wilayah_input
         })
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         nilai_ic, kategori_ic = hitung_internal_control(q1, uploaded_file1, is_valid_ocr_q1)
@@ -566,6 +644,7 @@ if submitted:
             "2. Alamat Lengkap Kantor Notaris": alamat,
             "Kedudukan Kota/Kabupaten": kota,
             "3. Jumlah Klien Tahun 2024-2025": jumlah_klien,
+            "Wilayah" : wilayah_input
         }
 
         # Rinci: profil, bisnis, jasa, produk, negara
@@ -574,6 +653,7 @@ if submitted:
         data.update({k: inputs_jasa.get(k, 0) for k in jasa.keys()})
         data.update({k: inputs_produk.get(k, 0) for k in produk.keys()})
         data.update({k: inputs_negara.get(k, 0) for k in negara.keys()})
+        data.update({k: wilayah_skor.get(k, 0) for k in wilayah_skor.keys()})
 
         # 34 pertanyaan + dokumen pendukung
         q_list = [q1,q2,q3,q4,q5,q6,q7,q8,q9,q10,q11,q12,q13,q14,q15,q16,q17,q18,q19,q20,q21,q22,q23,q24,q25,q26,q27,q28,q29,q30,q31,q32,q33,q34]
@@ -625,11 +705,14 @@ if submitted:
         data["jawaban_bisnis"]   = hasil_inherent["jawaban_bisnis"]
         data["skor_bisnis"]      = hasil_inherent["skor_bisnis"]
         data["jawaban_jasa"]     = hasil_inherent["jawaban_jasa"]
+        data["wilayah"] = wilayah_input   # ← PROVINSI YANG DIPILIH USER
         data["skor_jasa"]        = hasil_inherent["skor_jasa"]
         data["jawaban_negara"]   = hasil_inherent["jawaban_negara"]
         data["skor_negara"]      = hasil_inherent["skor_negara"]
         data["jawaban_apgakkum"] = hasil_inherent["jawaban_apgakkum"]
         data["skor_apgakkum"]    = hasil_inherent["skor_apgakkum"]
+        data["jawaban_wilayah"] = hasil_inherent["jawaban_wilayah"]
+        data["skor_wilayah"]    = hasil_inherent["skor_wilayah"]
 
         # Ringkasan skor/tingkat risiko
         data["Nilai Inherent Risk"]     = hasil_inherent["total_skor"]
@@ -644,7 +727,7 @@ if submitted:
 
         # --- Urutan kolom (opsional): taruh kolom identitas & ringkasan dulu, sisanya mengikuti ---
         ident_cols = [
-            "Timestamp","Nama Notaris","NIK KTP","Username Akun AHU Online","Nomor HP",
+            "Timestamp","Nama Notaris","NIK KTP","Username Akun AHU Online","Nomor HP", "Wilayah",
             "2. Alamat Lengkap Kantor Notaris","Kedudukan Kota/Kabupaten","3. Jumlah Klien Tahun 2024-2025"
         ]
         ringkasan_cols = [
@@ -657,7 +740,7 @@ if submitted:
         detail_cols = list(profil.keys()) + list(bisnis_pengguna.keys()) + list(jasa.keys()) + list(produk.keys()) + list(negara.keys())
         pilihan_cols = ["Apakah Notaris pernah dipanggil atau diminta informasi oleh Aparat Penegak Hukum?",
                         "jawaban_profil","skor_profil","jawaban_bisnis","skor_bisnis",
-                        "jawaban_jasa","skor_jasa","jawaban_negara","skor_negara",
+                        "jawaban_jasa","skor_jasa","jawaban_negara","skor_negara", "skor_wilayah",
                         "jawaban_apgakkum","skor_apgakkum"]
 
         column_order = ident_cols + detail_cols + q_cols_with_docs + pilihan_cols + ringkasan_cols
@@ -700,24 +783,33 @@ if submitted:
             row_df = pd.DataFrame([data]).reindex(columns=column_order)
 
             # Cek duplikat (Nama + NIK)
+            # Cek duplikat hanya berdasarkan NIK
             nama_baru = data.get("Nama Notaris", "")
-            nama_baru_lower = str(nama_baru).lower() if nama_baru else ""
-            nik_baru = data.get("NIK KTP", "")
+            nik_baru = str(data.get("NIK KTP", "")).strip()
 
-            if nama_baru_lower and nik_baru and not existing.empty:
-                existing_nama_lower = existing["Nama Notaris"].astype(str).str.lower()
-                existing_nik_str = existing["NIK KTP"].astype(str)
-                mask_duplikat = (existing_nama_lower == nama_baru_lower) & (existing_nik_str == str(nik_baru))
+            # --- Cek duplikat hanya berdasarkan NIK ---
+            if nik_baru and not existing.empty:
+                existing_nik_str = existing["NIK KTP"].astype(str).str.strip()
+                mask_duplikat = (existing_nik_str == nik_baru)
             else:
-                mask_duplikat = pd.Series([False]*len(existing))
+                mask_duplikat = pd.Series([False] * len(existing))
 
+            # --- Jika duplikat ditemukan ---
             if mask_duplikat.any():
+                # Hapus data lama (NIK sama)
                 existing_filtered = existing[~mask_duplikat].copy()
+
+                # Gabungkan dengan data baru
                 df_all = pd.concat([existing_filtered, row_df], ignore_index=True)
-                st.warning(f"⚠️ Data lama untuk '{nama_baru}' (NIK: {nik_baru}) ditemukan dan diganti.")
+
+                st.warning(
+                    f"⚠️ Data lama untuk '{nama_baru}' (NIK: {nik_baru}) ditemukan dan telah diganti."
+                )
+
+            # --- Jika tidak duplikat ---
             else:
                 df_all = pd.concat([existing, row_df], ignore_index=True)
-                st.info("✅ Data baru ditambahkan.")
+                st.info(f"✅ Data baru untuk '{nama_baru}' ditambahkan.")
 
             # Clear & update sheet
             worksheet.clear()
@@ -738,9 +830,3 @@ if submitted:
         except Exception as e:
             import traceback
             # st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
-
-
-
-
-
-
