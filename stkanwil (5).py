@@ -456,7 +456,7 @@ if submitted:
         os.makedirs("uploads", exist_ok=True)
         doc1_path, doc2_path = "", ""
         file_link_1, file_link_2 = "", ""
-        DRIVE_FOLDER_ID = None  # set jika mau upload ke folder spesifik
+        DRIVE_FOLDER_ID = "13YlHgQv1oXZWUOAQvw5wexdjfReLwdFb"  # set jika mau upload ke folder spesifik
 
         if uploaded_file1 is not None:
             filename_1 = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_doc1_{uploaded_file1.name}"
@@ -608,3 +608,4 @@ if submitted:
                 st.success("✅ Data berhasil disimpan ke Google Spreadsheet.")
             except Exception as e:
                 st.error(f"❌ Error saat menyimpan ke Google Sheets: {e}")
+
