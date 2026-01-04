@@ -29,31 +29,24 @@ scope = [
 # --- Autentikasi Google (hybrid: lokal + Streamlit Cloud) ---
 creds = None
 
-# ✅ 1. Kalau ada token lokal (buat development di laptop)
 if os.path.exists("token.json"):
     # st.info("🔑 Menggunakan token lokal (token.json)")
     creds = Credentials.from_authorized_user_file("token.json", scopes=scope)
 
-# ✅ 2. Kalau deploy di Streamlit Cloud (pakai secrets)
 elif "google" in st.secrets and "token" in st.secrets["google"]:
     # st.info("☁️ Menggunakan token dari Streamlit Secrets")
     creds_data = json.loads(st.secrets["google"]["token"])
     creds = Credentials.from_authorized_user_info(creds_data, scopes=scope)
 
-# ✅ 3. Kalau token ada tapi expired, refresh otomatis
 if creds and creds.expired and creds.refresh_token:
     creds.refresh(Request())
 
-# ✅ 4. Kalau belum ada sama sekali (misalnya pertama kali run lokal)
 if not creds:
     st.warning("🔐 Token belum ada, buka login Google OAuth untuk membuat token.json (hanya di lokal).")
     flow = InstalledAppFlow.from_client_secrets_file("credentials.json", scopes=scope)
     creds = flow.run_local_server(port=0)
     with open("token.json", "w") as token_file:
         token_file.write(creds.to_json())
-    # st.success("✅ Token baru disimpan sebagai token.json!")
-
-# --- Koneksi ke Google Sheets ---
 try:
     client = gspread.authorize(creds)
     # st.success("✅ Autentikasi Google Sheets berhasil!")
@@ -61,7 +54,6 @@ except Exception as e:
     # st.error(f"❌ Gagal autentikasi Google Sheets: {e}")
     client = None
 
-# --- Koneksi ke Google Drive ---
 try:
     drive_service = build('drive', 'v3', credentials=creds)
     # st.info("✅ Terhubung ke Google Drive API.")
@@ -69,7 +61,6 @@ except Exception as e:
     # st.error(f"❌ Gagal menghubungkan ke Google Drive API: {e}")
     drive_service = None
 
-# --- Buka Spreadsheet ---
 if client:
     try:
         sh = client.open("Kuisioner PMPJ Notaris FINAL 2025")  # Ganti dengan nama sheet kamu
@@ -262,7 +253,6 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
 
         all_text = ""
 
-        # --- 1️⃣ Ekstrak teks langsung (kalau PDF text-based) ---
         try:
             with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
                 for page in pdf.pages[:5]:
@@ -272,7 +262,6 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
         except Exception as e:
             st.warning(f"⚠️ Gagal ekstrak teks langsung: {e}")
 
-        # --- 2️⃣ Kalau teks kosong, fallback ke OCR (hasil scan) ---
         if not all_text.strip():
             st.info("📸 Proses scan PDF sedang berjalan...")
             try:
@@ -289,7 +278,6 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
                 st.error(f"❌ Gagal OCR dari gambar PDF: {e}")
                 return False, "Error OCR", 0
 
-        # --- 3️⃣ Cek kata kunci dengan fuzzy matching ---
         variasi_kata = [
             "formulir customer due diligence perorangan",
             "formulir customer due diligence",
@@ -317,7 +305,6 @@ def validasi_ocr_pdf(uploaded_file1, kata_kunci_list, judul=""):
             if found:
                 jumlah_ditemukan += 1
 
-        # --- 4️⃣ Kalau OCR gak nemu teks sama sekali ---
         if not all_text.strip():
             st.warning(f"⚠️ OCR tidak menemukan teks di file {judul}.")
             return False, "Tidak ada teks terdeteksi", 0
@@ -372,7 +359,6 @@ def final_risk(df):
     df["Tingkat Risiko"] = df.apply(lambda r: risk_priority.get(r["Nilai Residual Risk"], {}).get(r["Nilai Risiko Pengguna Jasa"]), axis=1)
     return df
 
-# --- UI Streamlit ---
 st.title("📊 Kuisioner PMPJ Notaris - Kementerian Hukum Jawa Timur")
 
 with st.form("risk_form"):
@@ -459,7 +445,6 @@ with st.form("risk_form"):
     "Kalimantan Utara"
 ]
 
-# Pilihan Kedudukan Kota/Kabupaten
     kota = st.selectbox("Pilih Kedudukan Kota/Kabupaten", daftar_kota)
     wilayah_input = st.selectbox("Pilih Wilayah Provinsi Kedudukan", daftar_wilayah)
 
@@ -478,7 +463,6 @@ with st.form("risk_form"):
     inputs_jasa = {k: st.number_input(k, min_value=0, value=0) for k in jasa.keys()}
 
     st.subheader("Jumlah Dokumen/Produk Jasa yang Diurus Klien")
-    # FIX: gunakan nama berbeda agar tidak menimpa inputs_jasa
     inputs_produk = {k: st.number_input(k, min_value=0, value=0) for k in produk.keys()}
 
     st.subheader("Jumlah Klien Sesuai Negara")
@@ -495,7 +479,6 @@ with st.form("risk_form"):
         
     q2 = st.radio("2.  Apakah Kantor Notaris anda memiliki kebijakan dan prosedur untuk mengelola dan memitigasi risiko tinggi pencucian uang dan/atau pendanaan terorisme, termasuk PEP dan negara yang berisiko tinggi sebagaimana diatur dalam Pasal 17 PerMenkumham Nomor 9 Tahun 2017?", ["YA", "TIDAK"])
     uploaded_file2 = st.file_uploader("Upload Dokumen Pendukung (SOP PMPJ) dengan format PDF", type=["pdf"])
-    # FIX: cek variabel yang benar
     if uploaded_file2 is not None:
         st.success(f"File berhasil diupload: {uploaded_file2.name}")
 
@@ -557,8 +540,6 @@ if submitted:
             uploaded_file1, kata_kunci_list, judul="Dokumen Q1 (CDD/EDD/Analisis Risiko)"
         )
 
-        # Simpan file pendukung (jika ada) & catat path
-        # --- Simpan file & upload ke Google Drive ---
         os.makedirs("uploads", exist_ok=True)
         doc1_path, doc2_path = "", ""
         file_link_1, file_link_2 = "", ""
@@ -581,7 +562,6 @@ if submitted:
 
                 file_id = uploaded.get("id")
 
-                # Ubah jadi publik (bisa diakses semua orang dengan link)
                 drive_service.permissions().create(
                     fileId=file_id,
                     body={"type": "anyone", "role": "reader"}
@@ -595,7 +575,6 @@ if submitted:
                 st.error(f"❌ Gagal upload ke Google Drive: {e}")
                 return local_path  # fallback: simpan path lokal
 
-        # Simpan & upload file 1
         if uploaded_file1 is not None:
             filename_1 = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_doc1_{uploaded_file1.name}"
             doc1_path = os.path.join("uploads", filename_1)
@@ -603,7 +582,6 @@ if submitted:
                 f.write(uploaded_file1.getbuffer())
             file_link_1 = upload_to_drive(doc1_path, uploaded_file1.name)
 
-        # Simpan & upload file 2
         if uploaded_file2 is not None:
             filename_2 = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_doc2_{uploaded_file2.name}"
             doc2_path = os.path.join("uploads", filename_2)
@@ -611,7 +589,6 @@ if submitted:
                 f.write(uploaded_file2.getbuffer())
             file_link_2 = upload_to_drive(doc2_path, uploaded_file2.name)
 
-        # Hitung risiko
         hasil_inherent = hitung_risiko({
             "profil": inputs_profil,
             "bisnis": inputs_bisnis,
@@ -633,7 +610,6 @@ if submitted:
         }])
         kategori_final = final_risk(df_temp).loc[0, "Tingkat Risiko"]
 
-        # --- Susun baris lengkap ---
         # Bagian identitas
         data = {
             "Timestamp": timestamp,
@@ -725,7 +701,6 @@ if submitted:
         data["Tingkat Risiko Pengguna Jasa"] = kategori_pengguna
         data["Tingkat Risiko"]               = kategori_final
 
-        # --- Urutan kolom (opsional): taruh kolom identitas & ringkasan dulu, sisanya mengikuti ---
         ident_cols = [
             "Timestamp","Nama Notaris","NIK KTP","Username Akun AHU Online","Nomor HP", "Wilayah",
             "2. Alamat Lengkap Kantor Notaris","Kedudukan Kota/Kabupaten","3. Jumlah Klien Tahun 2024-2025"
@@ -744,8 +719,6 @@ if submitted:
                         "jawaban_apgakkum","skor_apgakkum"]
 
         column_order = ident_cols + detail_cols + q_cols_with_docs + pilihan_cols + ringkasan_cols
-
-        # --- Simpan ke Excel ---
         
     # Helper: konversi nomor kolom ke huruf Excel (A, B, ..., AA, AB, ...)
     def colnum_to_excel(n: int) -> str:
@@ -811,7 +784,6 @@ if submitted:
                 df_all = pd.concat([existing, row_df], ignore_index=True)
                 st.info(f"✅ Data baru untuk '{nama_baru}' ditambahkan.")
 
-            # Clear & update sheet
             worksheet.clear()
 
             header = list(column_order)
@@ -820,7 +792,6 @@ if submitted:
 
             resp = worksheet.update("A1", data_to_write)
 
-            # Tangani hasil resp
             if isinstance(resp, dict):
                 st.success(f"✅ Data berhasil disimpan")
             # else:
@@ -830,3 +801,4 @@ if submitted:
         except Exception as e:
             import traceback
             # st.error(f"❌ Error saat menyimpan:\n{traceback.format_exc()}")
+
